@@ -89,7 +89,7 @@ function createDoor() {
   const doorGeometry = new THREE.BoxGeometry(2, 2.5, 0.2);
   const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
   door = new THREE.Mesh(doorGeometry, doorMaterial);
-  door.position.set(0, 1.25, -5 + 0.11); // slightly in front of back wall
+  door.position.set(0, 1.25, -5 + 0.11); //in front of back wall
   scene.add(door);
   door.userData.locked = true;
 }
@@ -103,13 +103,13 @@ function createLevers() {
   const baseHeight = 0.1;
   const baseDepth = 0.2;
 
-  leverStates = [false, false, false]; // all down
+  leverStates = [false, false, false];
 
   for (let i = 0; i < 3; i++) {
-    // Adjusted base height to fit comfortably on wall
+    //Bese Height
     const baseY = 0.6 + i * 0.8;
 
-    // Base attached to the wall
+    //Base
     const baseGeometry = new THREE.BoxGeometry(leverWidth, baseHeight, baseDepth);
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
     base.position.set(4.9, baseY, -1 + i);
@@ -164,7 +164,7 @@ function checkPuzzle() {
   ) {
     if (door.userData.locked) {
       door.userData.locked = false;
-      door.material.color.set(0x0000ff); // unlocked door color
+      door.material.color.set(0x0000ff); //'open' door is blue
       console.log("Puzzle solved! Door unlocked.");
     }
   }
@@ -180,3 +180,4 @@ function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
+
