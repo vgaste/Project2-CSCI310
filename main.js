@@ -1,11 +1,11 @@
-// Import Three.js from CDN (the ES6 module version)
+// Import Three.js from the CDN (full URL)
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js';
 
-// Import PointerLockControls from the CDN
+// Import PointerLockControls from the CDN (full URL)
 import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/controls/PointerLockControls.js';
 
 let scene, camera, renderer;
-let moveForward = false, moveBackward = false; moveLeft = false, moveRight = false;
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 const speed = 10.0;
