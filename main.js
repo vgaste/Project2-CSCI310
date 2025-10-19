@@ -1,7 +1,4 @@
 // main.js
-// Combined Puzzle 1 (levers) + Puzzle 2 (tables & pickable boxes)
-// Door unlocks if either puzzle is solved; relocks if both are wrong.
-
 let scene, camera, renderer;
 let door;
 let levers = [];
@@ -14,6 +11,8 @@ let boxes = [];
 let heldBox = null; 
 const boxHalf = 0.15; 
 const tableTopY = 1.0; 
+
+let keypadButtons = [];
 
 init();
 animate();
@@ -58,6 +57,9 @@ function init() {
 
   // Puzzle 2: tables (left wall) and boxes
   createTablesAndBoxes();
+
+  //Puzzle 3: Keypad
+  createKeypad();
 
   // Event listeners
   window.addEventListener('pointerdown', onPointerDown, false);
@@ -232,6 +234,13 @@ function onPointerDown(event) {
     toggleLever(index);
     return;
   }
+
+  const keypadIntersects = raycaster.intersectObjects(keypadButtons);
+  if (keypadIntersects.length > 0) {
+    const button = keypadIntersects[0].object;
+    handleKeypadPress(button.userData.value);
+    return;
+  }
 }
 
 function onPointerMove(event) {
@@ -245,7 +254,6 @@ function onPointerMove(event) {
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); 
   const intersect = new THREE.Vector3();
   raycaster.ray.intersectPlane(plane, intersect);
-  // Keep small Y so it looks picked up
   heldBox.position.set(intersect.x, boxHalf + 0.25, intersect.z);
 }
 
@@ -322,6 +330,69 @@ function toggleLever(index) {
   updateDoorLockState();
 }
 
+// -------------------- Puzzle 3: Keypad placement --------------------
+function createKeypad() {
+  const startX = 2.5;  
+  const startY = 1.5; 
+  const startZ = -4.85; 
+  const buttonSize = 0.25;
+  const spacing = 0.3;
+
+  const layout = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [null, 0, null] // 0 at bottom center
+  ];
+
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (layout[row][col] === null) continue;
+
+      const buttonGeometry = new THREE.BoxGeometry(buttonSize, 0.1, buttonSize);
+      const buttonMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+
+      const xPos = startX + (col - 1) * spacing;
+      const yPos = startY - row * spacing;
+      button.position.set(xPos, yPos, startZ);
+
+      scene.add(button);
+      keypadButtons.push(button);
+
+      button.userData.value = layout[row][col];
+    }
+  }
+}
+
+// -------------------- Puzzle 3: Keypad Logic --------------------
+let enteredCode = [];
+const correctCode = [1, 0, 7, 9]; //keypad answer
+
+function handleKeypadPress(value) {
+  enteredCode.push(value);
+  console.log("Key pressed:", value, "Entered:", enteredCode.join(""));
+
+  const btn = keypadButtons.find(b => b.userData.value === value);
+  if (btn) {
+    btn.material.color.set(0x999999);
+    setTimeout(() => btn.material.color.set(0xffffff), 200);
+  }
+
+  if (enteredCode.length === 4) {
+    if (enteredCode.every((v, i) => v === correctCode[i])) {
+      door.userData.locked = false;
+      door.material.color.set(0x0000ff);
+      console.log("Correct code! Door unlocked.");
+    } else {
+      door.userData.locked = true;
+      door.material.color.set(0xff0000);
+      console.log("Incorrect code. Door relocked.");
+    }
+    enteredCode = []; // reset
+  }
+}
+
 function checkPuzzle1() {
   const solved = (leverStates.length === leverSolution.length) &&
     leverStates.every((s, i) => s === leverSolution[i]);
@@ -376,4 +447,3 @@ function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
-
