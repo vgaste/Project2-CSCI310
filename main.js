@@ -1,4 +1,7 @@
 // main.js
+// Puzzle 1 (levers) + Puzzle 2 (tables & pickable boxes) + Puzzle 3 (keypad)
+// Door unlocks when all puzzles are solved
+
 let scene, camera, renderer;
 let door;
 let levers = [];
@@ -8,11 +11,17 @@ const leverSolution = [true, true, false]; // up, up, down
 // Puzzle 2 state
 let tables = [];
 let boxes = [];
-let heldBox = null; 
-const boxHalf = 0.15; 
-const tableTopY = 1.0; 
+let heldBox = null;
+const boxHalf = 0.15;
 
+// Puzzle 3: Keypad
 let keypadButtons = [];
+let enteredCode = [];
+const correctCode = [1, 2, 3, 4];
+let keypadSolved = false;
+
+// Puzzle indicators
+let puzzleIndicators = [];
 
 init();
 animate();
@@ -49,17 +58,16 @@ function init() {
   // Walls
   createWalls();
 
-  // Door (back wall)
+  // Door
   createDoor();
 
-  // Puzzle 1: levers (right wall)
+  // Puzzles
   createLevers();
-
-  // Puzzle 2: tables (left wall) and boxes
   createTablesAndBoxes();
-
-  //Puzzle 3: Keypad
   createKeypad();
+
+  // Puzzle indicators
+  createPuzzleIndicators();
 
   // Event listeners
   window.addEventListener('pointerdown', onPointerDown, false);
@@ -72,23 +80,19 @@ function createWalls() {
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
   const wallGeo = new THREE.BoxGeometry(10, 3, 0.2);
 
-  // Back wall
   const back = new THREE.Mesh(wallGeo, wallMaterial);
   back.position.set(0, 1.5, -5);
   scene.add(back);
 
-  // Front wall
   const front = new THREE.Mesh(wallGeo, wallMaterial);
   front.position.set(0, 1.5, 5);
   scene.add(front);
 
-  // Left wall
   const left = new THREE.Mesh(wallGeo, wallMaterial);
   left.rotation.y = Math.PI / 2;
   left.position.set(-5, 1.5, 0);
   scene.add(left);
 
-  // Right wall
   const right = new THREE.Mesh(wallGeo, wallMaterial);
   right.rotation.y = Math.PI / 2;
   right.position.set(5, 1.5, 0);
@@ -97,7 +101,7 @@ function createWalls() {
 
 function createDoor() {
   const doorGeo = new THREE.BoxGeometry(2, 2.5, 0.2);
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); 
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
   door = new THREE.Mesh(doorGeo, doorMat);
   door.position.set(0, 1.25, -4.9);
   door.userData.locked = true;
@@ -118,7 +122,7 @@ function createLevers() {
   for (let i = 0; i < 3; i++) {
     const baseGeo = new THREE.BoxGeometry(leverWidth, baseHeight, baseDepth);
     const base = new THREE.Mesh(baseGeo, baseMat);
-    const baseY = 0.6 + i * 0.7;    
+    const baseY = 0.6 + i * 0.7;
     base.position.set(4.9, baseY, -0.6 + i * 0.9);
     scene.add(base);
 
@@ -141,21 +145,21 @@ function createTablesAndBoxes() {
   tables = [];
   boxes = [];
 
-  const tableColors = [0xffa500, 0x800080, 0x00ff00]; 
-  const spacingZ = 1.6; 
-  const tableDepth = 0.8; 
-  const tableWidth = 1.4; 
-  const tableHeight = 1.0; 
-  const tableTopOffset = tableHeight / 2; 
-  const leftWallX = -4.6; 
+  const tableColors = [0xffa500, 0x800080, 0x00ff00];
+  const spacingZ = 1.6;
+  const tableDepth = 0.8;
+  const tableWidth = 1.4;
+  const tableHeight = 1.0;
+  const tableTopOffset = tableHeight / 2;
+  const leftWallX = -4.6;
 
-  const zPositions = [-spacingZ, 0, spacingZ]; 
+  const zPositions = [-spacingZ, 0, spacingZ];
   for (let i = 0; i < 3; i++) {
     const geom = new THREE.BoxGeometry(tableDepth, tableHeight, tableWidth);
     const mat = new THREE.MeshStandardMaterial({ color: tableColors[i] });
     const table = new THREE.Mesh(geom, mat);
-    table.position.set(leftWallX, tableTopOffset, zPositions[i]); 
-    table.userData.boxesOn = []; 
+    table.position.set(leftWallX, tableTopOffset, zPositions[i]);
+    table.userData.boxesOn = [];
     table.userData.index = i;
     scene.add(table);
     tables.push(table);
@@ -163,11 +167,6 @@ function createTablesAndBoxes() {
 
   const boxColors = [0xff0000, 0xffff00, 0x0000ff];
   const boxSize = 0.3;
-  const startZ = -3.2;
-  const startX = 2.5;
-  let colorIndex = 0;
-  let colorCount = 0;
-
   const startPositions = [
     { x: 2.5, y: boxHalf, z: -3.0 },
     { x: 2.0, y: boxHalf, z: -3.0 },
@@ -177,6 +176,9 @@ function createTablesAndBoxes() {
     { x: -1.4, y: boxHalf, z: -3.0 }
   ];
 
+  let colorIndex = 0;
+  let colorCount = 0;
+
   for (let i = 0; i < 6; i++) {
     const geom = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
     const mat = new THREE.MeshStandardMaterial({ color: boxColors[colorIndex] });
@@ -184,15 +186,70 @@ function createTablesAndBoxes() {
     const pos = startPositions[i];
     box.position.set(pos.x, pos.y, pos.z);
     box.userData = {
-      colorIndex: colorIndex, 
+      colorIndex: colorIndex,
       startPos: box.position.clone(),
-      placedOn: null 
+      placedOn: null
     };
     scene.add(box);
     boxes.push(box);
 
     colorCount++;
     if (colorCount === 2) { colorCount = 0; colorIndex++; }
+  }
+}
+
+function createKeypad() {
+  const startX = 2.5;
+  const startY = 1.5;
+  const startZ = -4.85;
+  const buttonSize = 0.25;
+  const spacing = 0.3;
+
+  const layout = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [null, 0, null]
+  ];
+
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (layout[row][col] === null) continue;
+
+      const buttonGeometry = new THREE.BoxGeometry(buttonSize, 0.1, buttonSize);
+      const buttonMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+
+      const xPos = startX + (col - 1) * spacing;
+      const yPos = startY - row * spacing;
+      button.position.set(xPos, yPos, startZ);
+
+      scene.add(button);
+      keypadButtons.push(button);
+      button.userData.value = layout[row][col];
+    }
+  }
+}
+
+function createPuzzleIndicators() {
+  const squareSize = 0.25;
+  const spacing = 0.35;
+  const startX = -1.5;
+  const yPos = 2.0;
+  const zPos = -4.88;
+
+  for (let i = 0; i < 3; i++) {
+    const geo = new THREE.BoxGeometry(squareSize, squareSize, 0.05);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0x550000,
+      emissiveIntensity: 0.2
+    });
+    const square = new THREE.Mesh(geo, mat);
+    square.position.set(startX - i * spacing, yPos, zPos);
+    square.userData.puzzleIndex = i;
+    scene.add(square);
+    puzzleIndicators.push(square);
   }
 }
 
@@ -207,8 +264,7 @@ function onPointerDown(event) {
   if (heldBox) {
     const tableIntersects = raycaster.intersectObjects(tables);
     if (tableIntersects.length > 0) {
-      const table = tableIntersects[0].object;
-      placeBoxOnTable(heldBox, table);
+      placeBoxOnTable(heldBox, tableIntersects[0].object);
       heldBox = null;
       updateDoorLockState();
       return;
@@ -222,23 +278,20 @@ function onPointerDown(event) {
 
   const boxIntersects = raycaster.intersectObjects(boxes);
   if (boxIntersects.length > 0) {
-    const box = boxIntersects[0].object;
-    pickUpBox(box);
+    pickUpBox(boxIntersects[0].object);
     return;
   }
 
   const leverIntersects = raycaster.intersectObjects(levers.map(l => l.group));
   if (leverIntersects.length > 0) {
-    const leverGroup = leverIntersects[0].object.parent ? leverIntersects[0].object.parent : leverIntersects[0].object;
-    const index = leverGroup.userData.index;
-    toggleLever(index);
+    const leverGroup = leverIntersects[0].object.parent || leverIntersects[0].object;
+    toggleLever(leverGroup.userData.index);
     return;
   }
 
   const keypadIntersects = raycaster.intersectObjects(keypadButtons);
   if (keypadIntersects.length > 0) {
-    const button = keypadIntersects[0].object;
-    handleKeypadPress(button.userData.value);
+    handleKeypadPress(keypadIntersects[0].object.userData.value);
     return;
   }
 }
@@ -251,7 +304,7 @@ function onPointerMove(event) {
   );
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); 
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const intersect = new THREE.Vector3();
   raycaster.ray.intersectPlane(plane, intersect);
   heldBox.position.set(intersect.x, boxHalf + 0.25, intersect.z);
@@ -294,12 +347,11 @@ function placeBoxOnTable(box, table) {
   }
 
   const tableTopY = table.position.y + (table.geometry.parameters.height / 2);
-  const depth = table.geometry.parameters.depth || table.geometry.parameters.width || 0.8;
-  const xOffsetAwayFromWall = 0.2; 
+  const xOffsetAwayFromWall = 0.2;
   const zOffset = (already === 0) ? -0.2 : 0.2;
 
-  const placeX = table.position.x + xOffsetAwayFromWall; 
-  const placeY = tableTopY + boxHalf; // on top
+  const placeX = table.position.x + xOffsetAwayFromWall;
+  const placeY = tableTopY + boxHalf;
   const placeZ = table.position.z + zOffset;
 
   box.position.set(placeX, placeY, placeZ);
@@ -326,52 +378,12 @@ function toggleLever(index) {
   const group = levers[index].group;
   leverStates[index] = !leverStates[index];
   group.rotation.x = leverStates[index] ? -Math.PI / 4 : 0;
-  checkPuzzle1();
   updateDoorLockState();
 }
 
-// -------------------- Puzzle 3: Keypad placement --------------------
-function createKeypad() {
-  const startX = 2.5;  
-  const startY = 1.5; 
-  const startZ = -4.85; 
-  const buttonSize = 0.25;
-  const spacing = 0.3;
-
-  const layout = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9],
-    [null, 0, null] // 0 at bottom center
-  ];
-
-  for (let row = 0; row < layout.length; row++) {
-    for (let col = 0; col < layout[row].length; col++) {
-      if (layout[row][col] === null) continue;
-
-      const buttonGeometry = new THREE.BoxGeometry(buttonSize, 0.1, buttonSize);
-      const buttonMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
-
-      const xPos = startX + (col - 1) * spacing;
-      const yPos = startY - row * spacing;
-      button.position.set(xPos, yPos, startZ);
-
-      scene.add(button);
-      keypadButtons.push(button);
-
-      button.userData.value = layout[row][col];
-    }
-  }
-}
-
-// -------------------- Puzzle 3: Keypad Logic --------------------
-let enteredCode = [];
-const correctCode = [1, 0, 7, 9]; //keypad answer
-
 function handleKeypadPress(value) {
+  if (keypadSolved) return; 
   enteredCode.push(value);
-  console.log("Key pressed:", value, "Entered:", enteredCode.join(""));
 
   const btn = keypadButtons.find(b => b.userData.value === value);
   if (btn) {
@@ -379,60 +391,78 @@ function handleKeypadPress(value) {
     setTimeout(() => btn.material.color.set(0xffffff), 200);
   }
 
-  if (enteredCode.length === 4) {
+  if (enteredCode.length === correctCode.length) {
     if (enteredCode.every((v, i) => v === correctCode[i])) {
-      door.userData.locked = false;
-      door.material.color.set(0x0000ff);
-      console.log("Correct code! Door unlocked.");
+      keypadSolved = true;
+      console.log("Keypad solved!");
     } else {
-      door.userData.locked = true;
-      door.material.color.set(0xff0000);
-      console.log("Incorrect code. Door relocked.");
+      console.log("Incorrect code.");
     }
-    enteredCode = []; // reset
+    enteredCode = [];
   }
+
+  updateDoorLockState();
 }
 
 function checkPuzzle1() {
-  const solved = (leverStates.length === leverSolution.length) &&
-    leverStates.every((s, i) => s === leverSolution[i]);
-
-  return solved;
+  return leverStates.every((s, i) => s === leverSolution[i]);
 }
 
 function checkPuzzle2() {
   const required = [
-    [0, 1], // table 0 (orange)
-    [0, 2], // table 1 (purple)
-    [1, 2]  // table 2 (green)
+    [0, 1],
+    [0, 2],
+    [1, 2]
   ];
 
   for (let i = 0; i < tables.length; i++) {
-    const boxesOn = (tables[i].userData.boxesOn || []);
+    const boxesOn = tables[i].userData.boxesOn || [];
     if (boxesOn.length !== 2) return false;
-    const colors = boxesOn.map(b => b.userData.colorIndex).sort((a,b)=>a-b);
-    const need = required[i].slice().sort((a,b)=>a-b);
+    const colors = boxesOn.map(b => b.userData.colorIndex).sort((a, b) => a - b);
+    const need = required[i].slice().sort((a, b) => a - b);
     if (!(colors[0] === need[0] && colors[1] === need[1])) return false;
   }
-
   return true;
+}
+
+function checkKeypad() {
+  return keypadSolved;
 }
 
 function updateDoorLockState() {
   const puzzle1Solved = checkPuzzle1();
   const puzzle2Solved = checkPuzzle2();
+  const keypadSolvedNow = checkKeypad();
 
-  if (puzzle1Solved || puzzle2Solved) {
+  updatePuzzleIndicators();
+
+  if (puzzle1Solved && puzzle2Solved && keypadSolvedNow) {
     if (door.userData.locked) {
       door.userData.locked = false;
       door.material.color.set(0x0000ff); // unlocked blue
-      console.log('Door unlocked (one or both puzzles solved).');
+      console.log("Door unlocked (all puzzles solved).");
     }
   } else {
     if (!door.userData.locked) {
       door.userData.locked = true;
       door.material.color.set(0x00ff00); // locked green
-      console.log('Door locked (no puzzle solved).');
+      console.log("Door locked (not all puzzles solved).");
+    }
+  }
+}
+
+function updatePuzzleIndicators() {
+  const states = [checkPuzzle1(), checkPuzzle2(), checkKeypad()];
+  for (let i = 0; i < puzzleIndicators.length; i++) {
+    const square = puzzleIndicators[i];
+    if (states[i]) {
+      square.material.color.set(0x00ff00);
+      square.material.emissive.set(0x005500);
+      square.material.emissiveIntensity = 0.4;
+    } else {
+      square.material.color.set(0xff0000);
+      square.material.emissive.set(0x550000);
+      square.material.emissiveIntensity = 0.2;
     }
   }
 }
