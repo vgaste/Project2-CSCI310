@@ -83,3 +83,12 @@ body {
     padding: 10px 20px;
     cursor: pointer;
 }
+
+#resetButton {
+    position: absolute;
+    top: 70px; /* adjust as needed */
+    left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    z-index: 10;
+}
