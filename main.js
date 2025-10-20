@@ -98,6 +98,17 @@ function init() {
         }
     });
 
+    const resetButton = document.getElementById('resetButton');
+    resetButton.addEventListener('click', () => {
+        document.getElementById('startScreen').style.display = 'flex';
+        document.getElementById('endScreen').style.display = 'none';
+        renderer.domElement.style.pointerEvents = 'none';
+
+        clearInterval(timerInterval);
+        startTime = 0;
+        document.getElementById('timer').textContent = 'Time: 0s';
+        location.reload();
+    });
 
     document.getElementById('restartButton').addEventListener('click', ()=>location.reload());
 }
@@ -412,4 +423,3 @@ function showEndScreen() {
     document.getElementById('finalTime').textContent = `Time: ${minutes}:${seconds}`;
     document.getElementById('endScreen').style.display = 'flex';
 }
-
