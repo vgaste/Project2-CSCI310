@@ -9,7 +9,7 @@ let heldBox = null;
 const boxHalf = 0.15;
 let keypadButtons = [];
 let enteredCode = [];
-const correctCode = [1, 2, 3, 4]; 
+const correctCode = [1, 0, 7, 9]; 
 let keypadSolved = false;
 let puzzleIndicators = [];
 let startTime = 0;
@@ -406,3 +406,4 @@ function showEndScreen(){
   document.getElementById('finalTime').textContent = `Time: ${minutes}:${seconds}`;
   document.getElementById('endScreen').style.display='flex';
 }
+
