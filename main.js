@@ -19,6 +19,8 @@ let puzzleIndicators = [];
 let startTime = 0;
 let timerInterval;
 let isPaused = false;
+let pauseStart = 0;
+let pausedTime = 0;
 
 const playerSpeed = 0.05;
 const keysPressed = {};
@@ -84,10 +86,18 @@ function init() {
     });
 
     const pauseButton = document.getElementById('pauseButton');
-    pauseButton.addEventListener('click', ()=>{
-        isPaused = !isPaused;
-        pauseButton.textContent = isPaused?'Resume':'Pause';
+    pauseButton.addEventListener('click', () => {
+        if(!isPaused){
+            isPaused = true;
+            pauseStart = Date.now();
+            pauseButton.textContent = 'Resume';
+        } else {
+            isPaused = false;
+            pausedTime += Date.now() - pauseStart;
+            pauseButton.textContent = 'Pause';
+        }
     });
+
 
     document.getElementById('restartButton').addEventListener('click', ()=>location.reload());
 }
@@ -225,7 +235,6 @@ function onPointerDown(event){
 
         if(boxes.includes(obj)) pickUpBox(obj);
         else if(levers.some(l => l.group === obj || l.group.children.includes(obj))) {
-            // find which lever
             const lever = levers.find(l => l.group === obj || l.group.children.includes(obj));
             toggleLever(lever.group.userData.index);
         }
@@ -272,13 +281,69 @@ function placeBoxOnTable(box,table){
 }
 
 function restoreHeldBox(){if(!heldBox) return; restoreHeldBoxToStart(heldBox);}
-function restoreHeldBoxToStart(box){box.position.copy(box.userData.startPos); if(box.userData.placedOn){const t=box.userData.placedOn; const idx=t.userData.boxesOn.indexOf(box); if(idx!==-1) t.userData.boxesOn.splice(idx,1); box.userData.placedOn=null;}}
+function restoreHeldBoxToStart(box){
+    box.position.copy(box.userData.startPos); 
+    if(box.userData.placedOn){
+        const t=box.userData.placedOn; 
+        const idx=t.userData.boxesOn.indexOf(box); 
+        if(idx!==-1) t.userData.boxesOn.splice(idx,1); 
+        box.userData.placedOn=null;}
+    }
 
-function toggleLever(index){leverStates[index]=!leverStates[index]; levers[index].group.rotation.x=leverStates[index]?-Math.PI/4:0; updateDoorLockState();}
-function handleKeypadPress(value){if(keypadSolved||isPaused)return; enteredCode.push(value); const btn=keypadButtons.find(b=>b.userData.value===value); if(btn){btn.material.color.set(0x999999); setTimeout(()=>{if(!keypadSolved) btn.material.color.set(0xffffff);},200);} if(enteredCode.length===correctCode.length){if(enteredCode.every((v,i)=>v===correctCode[i])){keypadSolved=true;} enteredCode=[];} updateDoorLockState();}
+function toggleLever(index){
+    leverStates[index]=!leverStates[index]; 
+    levers[index].group.rotation.x=leverStates[index]?-Math.PI/4:0; updateDoorLockState();
+
+}
+
+function handleKeypadPress(value){
+    if(keypadSolved || isPaused) return;
+
+    enteredCode.push(value);
+
+    const btn = keypadButtons.find(b => b.userData.value === value);
+    if(btn){
+        btn.material.color.set(0x999999);
+        setTimeout(() => { 
+            if(!keypadSolved) btn.material.color.set(0xffffff); 
+        }, 200);
+    }
+
+    if(enteredCode.length === correctCode.length){
+
+        let flashColor;
+
+        if(enteredCode.every((v,i) => v === correctCode[i])){
+            keypadSolved = true;
+            flashColor = 0x00ff00; // green for correct
+            console.log("Keypad solved!");
+        } else {
+            flashColor = 0xff0000; // red for incorrect
+            console.log("Incorrect code.");
+        }
+
+        keypadButtons.forEach(b => b.material.color.set(flashColor));
+        setTimeout(() => {
+            if(!keypadSolved) keypadButtons.forEach(b => b.material.color.set(0xffffff));
+        }, 300);
+
+        enteredCode = [];
+    }
+
+    updateDoorLockState();
+}
 
 function checkPuzzle1(){return leverStates.every((s,i)=>s===leverSolution[i]);}
-function checkPuzzle2(){const required=[[0,1],[0,2],[1,2]]; for(let i=0;i<tables.length;i++){const boxesOn=tables[i].userData.boxesOn; if(boxesOn.length!==2) return false; const colors=boxesOn.map(b=>b.userData.colorIndex).sort((a,b)=>a-b); const need=required[i].slice().sort((a,b)=>a-b); if(!(colors[0]===need[0] && colors[1]===need[1])) return false;} return true;}
+function checkPuzzle2(){
+    const required=[[0,1],[0,2],[1,2]]; 
+    for(let i=0;i<tables.length;i++){
+        const boxesOn=tables[i].userData.boxesOn; 
+        if(boxesOn.length!==2) return false; 
+        const colors=boxesOn.map(b=>b.userData.colorIndex).sort((a,b)=>a-b); 
+        const need=required[i].slice().sort((a,b)=>a-b); 
+        if(!(colors[0]===need[0] && colors[1]===need[1])) return false;
+    } 
+    return true;}
 function checkPuzzle3(){return keypadSolved;}
 
 function updateDoorLockState(){
@@ -329,19 +394,21 @@ function handlePlayerMovement() {
     camera.position.copy(newPos);
 }
 
-// Timer
-function updateTimer(){
+function updateTimer() {
     if(isPaused) return;
-    const elapsed = Math.floor((Date.now()-startTime)/1000);
-    document.getElementById('timer').textContent=`Time: ${elapsed}s`;
+
+    const now = Date.now();
+    const elapsed = Math.floor((now - startTime - pausedTime) / 1000);
+    document.getElementById('timer').textContent = `Time: ${elapsed}s`;
 }
 
-// End Screen 
-function showEndScreen(){
+function showEndScreen() {
     clearInterval(timerInterval);
-    const elapsed = Math.floor((Date.now()-startTime)/1000);
-    const minutes = Math.floor(elapsed/60).toString().padStart(2,'0');
-    const seconds = (elapsed%60).toString().padStart(2,'0');
-    document.getElementById('finalTime').textContent=`Time: ${minutes}:${seconds}`;
-    document.getElementById('endScreen').style.display='flex';
+
+    const elapsed = Math.floor((Date.now() - startTime - pausedTime) / 1000);
+    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const seconds = (elapsed % 60).toString().padStart(2, '0');
+
+    document.getElementById('finalTime').textContent = `Time: ${minutes}:${seconds}`;
+    document.getElementById('endScreen').style.display = 'flex';
 }
